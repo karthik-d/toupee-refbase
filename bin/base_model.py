@@ -18,6 +18,7 @@ import toupee as tp
 def main(args=None, params=None):
     """ Train a base model as specified """
     parser = argparse.ArgumentParser(description='Train a single Base Model')
+    parser.add_argument('root_path', help='the root path of the codebase')
     parser.add_argument('params_file', help='the parameters file')
     parser.add_argument('save_file', nargs='?',
                         help='the file where the trained MLP is to be saved')
@@ -26,7 +27,7 @@ def main(args=None, params=None):
     parser.add_argument('--tensorboard', action="store_true",
                         help="Save training graphs to TensorBoard")
     parser.add_argument('--adversarial-testing', action="store_true",
-                        help="Test for adversarial robustness")\
+                        help="Test for adversarial robustness")
     parser.add_argument('--wandb', action="store_true",
                         help="Send results to Weights and Biases")
     parser.add_argument('--wandb-project', type=str, help="Weights and Biases project name")
@@ -47,7 +48,14 @@ def main(args=None, params=None):
                    config={"type": "base_model", "args": args, "params": params.__dict__},
                    group=wandb_group,
                    name='model-0')
-    data = tp.data.Dataset(src_dir=params.dataset, **params.__dict__)
+
+    # DEBUG
+    print("[DEBUG]", os.getcwd())
+
+    # Changing path context
+    # data = tp.data.Dataset(src_dir=params.dataset, **params.__dict__)
+    data = tp.data.Dataset(src_dir=os.path.join(args.root_path, params.dataset), **params.__dict__)
+
     base_model = tp.model.Model(params=params)
     base_model.fit(data=data, log_wandb=args.wandb, adversarial_testing=args.adversarial_testing,
                     tensorboard=args.tensorboard)

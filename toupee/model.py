@@ -16,6 +16,13 @@ import logging
 import tensorflow as tf # type: ignore
 import numpy as np # type: ignore
 import uuid
+import yaml
+import json
+
+try:
+    from yaml import CLoader as YLoader
+except ImportError:
+    from yaml import Loader as YLoader
 
 import wandb
 import toupee as tp
@@ -96,12 +103,23 @@ class Model:
     #TODO: Get model id and use different tb log dir for each model
     def __init__(self, params, model_yaml=None, optimizer=None):
         self.params = params
+
+        # PIPELINE FIX: Newer versions of `tf` do not allow `yaml`` configuration for models. 
+        # Following lines convert `yaml` to `json` for model configuration.
+        '''
+        # Previous Version
         if not model_yaml:
             with open(params.model_file, 'r') as model_file:
                 self.model_yaml = model_file.read()
         else:
             self.model_yaml = model_yaml
-        self._model = tf.keras.models.model_from_yaml(self.model_yaml)
+        '''
+        with open(params.model_file, 'r') as model_file:
+            configuration = yaml.load(model_file.read(), Loader=YLoader)
+        
+        self.model_json = json.dumps(configuration, indent=2)
+        self._model = tf.keras.models.model_from_json(self.model_json)
+
         if params.model_weights:
             self._model.load_weights(params.model_weights)
         self.optimizer = optimizer or params.optimizer
@@ -141,7 +159,11 @@ class Model:
                 new_layers.append(layer)
         model_config['layers'] = new_layers
         self._model = tf.keras.Model.from_config(model_config)
-        self.model_yaml = self._model.to_yaml()
+        
+        # CHANGE: json-yaml switch
+        # self.model_yaml = self._model.to_yaml()
+        self.model_json = self._model.to_json()
+        
         return last_new_layer
 
     def copy_weights(self, other_model, early_stop=False):
